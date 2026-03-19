@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}用户管理 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+{% block page_desc %}新增、修改、删除平台用户并维护角色信息{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <section class="panel admin-hero">
+        <div>
+            <div class="hero-badge-small">User Management</div>
+            <h2>平台用户与角色维护</h2>
+            <p>支持管理员对账号、角色和密码进行维护。</p>
+        </div>
+        <div class="admin-stats">
+            <div class="admin-stat-card">
+                <span>用户总数</span>
+                <strong>{{ users|length }}</strong>
+            </div>
+            <div class="admin-stat-card">
+                <span>管理员</span>
+                <strong>{{ users | selectattr('role', 'equalto', 'admin') | list | length }}</strong>
+            </div>
+            <div class="admin-stat-card">
+                <span>分析员</span>
+                <strong>{{ users | selectattr('role', 'equalto', 'analyst') | list | length }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>新增用户</h3>
+            <p>创建新的管理员或分析员账号</p>
+        </div>
+
+        <form method="post" action="/admin/users/add" class="admin-form-grid">
+            <div>
+                <label>用户名</label>
+                <input type="text" name="username" placeholder="请输入用户名" required>
+            </div>
+            <div>
+                <label>密码</label>
+                <input type="text" name="password" placeholder="请输入初始密码" required>
+            </div>
+            <div>
+                <label>角色</label>
+                <select name="role">
+                    <option value="analyst">analyst</option>
+                    <option value="admin">admin</option>
+                </select>
+            </div>
+            <div class="full-row">
+                <button type="submit" class="btn btn-primary">新增用户</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>用户列表</h3>
+        </div>
+
+        <div class="entity-grid">
+            {% for u in users %}
+            <div class="entity-card">
+                <div class="entity-card-top">
+                    <div>
+                        <div class="entity-title">{{ u.username }}</div>
+                        <div class="entity-subtitle">用户 ID：{{ u.id }}</div>
+                    </div>
+                    {% if u.role == 'admin' %}
+                    <span class="status-badge success">admin</span>
+                    {% else %}
+                    <span class="status-badge muted">analyst</span>
+                    {% endif %}
+                </div>
+
+                <div class="entity-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">创建时间</span>
+                        <span class="meta-value">{{ u.created_at }}</span>
+                    </div>
+                </div>
+
+                <details class="edit-box" >
+                    <summary>编辑用户信息</summary>
+                    <form method="post" action="/admin/users/{{ u.id }}/update" class="admin-form-grid compact-form">
+                        <div>
+                            <label>用户名</label>
+                            <input type="text" name="username" value="{{ u.username }}" required>
+                        </div>
+                        <div>
+                            <label>角色</label>
+                            <select name="role">
+                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+                                <option value="analyst" {% if u.role == 'analyst' %}selected{% endif %}>analyst</option>
+                            </select>
+                        </div>
+                        <div class="full-row">
+                            <label>重置密码（留空则不修改）</label>
+                            <input type="text" name="password" placeholder="输入新密码后才会更新">
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">保存修改</button>
+                        </div>
+                    </form>
+                </details>
+
+                <form method="post"
+                      action="/admin/users/{{ u.id }}/delete"
+                      onsubmit="return confirm('确认删除用户：{{ u.username }} 吗？');"
+                      class="danger-form">
+                    <button type="submit" class="btn btn-danger-outline">删除用户</button>
+                </form>
+            </div>
+            {% endfor %}
+
+            {% if not users %}
+            <div class="empty-state">暂无用户数据</div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

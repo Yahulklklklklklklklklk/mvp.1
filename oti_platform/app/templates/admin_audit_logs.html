@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}审计日志 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block page_title %}审计日志{% endblock %}
+{% block page_desc %}查看最近 100 条系统操作审计记录{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h3>操作审计记录</h3>
+        <p>记录用户登录、查询、情报源管理、用户管理等关键操作</p>
+    </div>
+
+    <div class="table-wrap">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>操作用户</th>
+                    <th>动作</th>
+                    <th>详情</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>{{ user_map.get(log.user_id, '系统/未知用户') }}</td>
+                    <td><span class="table-badge">{{ log.action }}</span></td>
+                    <td>{{ log.detail or '-' }}</td>
+                    <td>{{ log.created_at }}</td>
+                </tr>
+            {% endfor %}
+
+            {% if not logs %}
+                <tr>
+                    <td colspan="5" class="empty-cell">暂无审计日志</td>
+                </tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}查询历史 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block page_title %}查询历史{% endblock %}
+{% block page_desc %}查看当前用户最近 50 条威胁情报检索记录{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h3>历史记录</h3>
+        <p>展示最近的查询内容、类型、结果数和时间</p>
+    </div>
+
+    <div class="table-wrap">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>查询内容</th>
+                    <th>类型</th>
+                    <th>结果数</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in histories %}
+                <tr>
+                    <td><span class="key-text">{{ item.query_text }}</span></td>
+                    <td><span class="table-badge">{{ item.query_type }}</span></td>
+                    <td>{{ item.result_count }}</td>
+                    <td>{{ item.queried_at }}</td>
+                </tr>
+            {% endfor %}
+            {% if not histories %}
+                <tr>
+                    <td colspan="4" class="empty-cell">暂无查询历史</td>
+                </tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

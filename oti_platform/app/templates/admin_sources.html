@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}情报源管理 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block page_title %}情报源管理{% endblock %}
+{% block page_desc %}统一配置、启用、修改或删除外部威胁情报源{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <section class="panel admin-hero">
+        <div>
+            <div class="hero-badge-small">Source Management</div>
+            <h2>威胁情报源统一维护</h2>
+        </div>
+        <div class="admin-stats">
+            <div class="admin-stat-card">
+                <span>情报源总数</span>
+                <strong>{{ sources|length }}</strong>
+            </div>
+            <div class="admin-stat-card">
+                <span>启用中</span>
+                <strong>{{ sources | selectattr('enabled', 'equalto', true) | list | length }}</strong>
+            </div>
+            <div class="admin-stat-card">
+                <span>禁用中</span>
+                <strong>{{ sources | selectattr('enabled', 'equalto', false) | list | length }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>新增情报源</h3>
+        </div>
+
+        <form method="post" action="/admin/sources/add" class="admin-form-grid">
+            <div>
+                <label>名称</label>
+                <input type="text" name="name" placeholder="例如：AlienVault OTX Real" required>
+            </div>
+            <div>
+                <label>类型</label>
+                <select name="source_type">
+                    <option value="mock_feed">mock_feed</option>
+                    <option value="alienvault_otx">alienvault_otx</option>
+                </select>
+            </div>
+            <div>
+                <label>Base URL</label>
+                <input type="text" name="base_url" placeholder="可选">
+            </div>
+            <div>
+                <label>API Key</label>
+                <input type="text" name="api_key" placeholder="可选">
+            </div>
+            <div>
+                <label>是否启用</label>
+                <select name="enabled">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+            <div class="full-row">
+                <button type="submit" class="btn btn-primary">添加情报源</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>已配置情报源</h3>
+        </div>
+
+        <div class="entity-grid">
+            {% for s in sources %}
+            <div class="entity-card">
+                <div class="entity-card-top">
+                    <div>
+                        <div class="entity-title">{{ s.name }}</div>
+                        <div class="entity-subtitle">类型：{{ s.source_type }} ｜ ID：{{ s.id }}</div>
+                    </div>
+                    {% if s.enabled %}
+                    <span class="status-badge success">启用</span>
+                    {% else %}
+                    <span class="status-badge muted">禁用</span>
+                    {% endif %}
+                </div>
+
+                <div class="entity-meta two-col">
+                    <div class="meta-item">
+                        <span class="meta-label">Base URL</span>
+                        <span class="meta-value">{{ s.base_url or '-' }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">API Key</span>
+                        <span class="meta-value">{{ '已配置' if s.api_key else '未配置' }}</span>
+                    </div>
+                </div>
+
+                <div class="card-actions">
+                    <form method="post" action="/admin/sources/{{ s.id }}/toggle">
+                        <button type="submit" class="btn btn-light">
+                            {% if s.enabled %}禁用源{% else %}启用源{% endif %}
+                        </button>
+                    </form>
+                </div>
+
+                <details class="edit-box">
+                    <summary>编辑情报源配置</summary>
+                    <form method="post" action="/admin/sources/{{ s.id }}/update" class="admin-form-grid compact-form">
+                        <div>
+                            <label>名称</label>
+                            <input type="text" name="name" value="{{ s.name }}" required>
+                        </div>
+                        <div>
+                            <label>类型</label>
+                            <select name="source_type">
+                                <option value="mock_feed" {% if s.source_type == 'mock_feed' %}selected{% endif %}>mock_feed</option>
+                                <option value="alienvault_otx" {% if s.source_type == 'alienvault_otx' %}selected{% endif %}>alienvault_otx</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Base URL</label>
+                            <input type="text" name="base_url" value="{{ s.base_url or '' }}">
+                        </div>
+                        <div>
+                            <label>API Key</label>
+                            <input type="text" name="api_key" value="{{ s.api_key or '' }}">
+                        </div>
+                        <div>
+                            <label>是否启用</label>
+                            <select name="enabled">
+                                <option value="true" {% if s.enabled %}selected{% endif %}>true</option>
+                                <option value="false" {% if not s.enabled %}selected{% endif %}>false</option>
+                            </select>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">保存修改</button>
+                        </div>
+                    </form>
+                </details>
+
+                <form method="post"
+                      action="/admin/sources/{{ s.id }}/delete"
+                      onsubmit="return confirm('确认删除情报源：{{ s.name }} 吗？');"
+                      class="danger-form">
+                    <button type="submit" class="btn btn-danger-outline">删除情报源</button>
+                </form>
+            </div>
+            {% endfor %}
+
+            {% if not sources %}
+            <div class="empty-state">暂无情报源配置</div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

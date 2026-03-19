@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}登录 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block content %}
+<div class="login-wrapper">
+    <section class="login-hero">
+        <div class="hero-badge">Threat Intelligence Platform</div>
+        <h1>开源威胁情报智能分级搜索平台</h1>
+        <p>
+            支持本地缓存优先检索、多源情报聚合查询、批量 IOC 检索、
+            用户权限管理与审计追踪，适合毕业设计、课程设计与演示展示。
+        </p>
+        <div class="hero-tags">
+            <span>缓存优先</span>
+            <span>聚合查询</span>
+            <span>用户治理</span>
+        </div>
+    </section>
+
+    <section class="login-card">
+        <div class="login-card-header">
+            <h2>系统登录</h2>
+            <p>请输入账号信息进入平台</p>
+        </div>
+
+        {% if error %}
+        <div class="alert error-alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="login-form">
+            <label>用户名</label>
+            <input type="text" name="username" placeholder="请输入用户名" required>
+
+            <label>密码</label>
+            <input type="password" name="password" placeholder="请输入密码" required>
+
+            <button type="submit" class="btn btn-primary btn-block">登录系统</button>
+        </form>
+
+        <div class="demo-box">
+            <div class="demo-title">演示账号</div>
+            <div>管理员：admin / admin123</div>
+            <div>分析员：analyst / analyst123</div>
+        </div>
+    </section>
+</div>
+{% endblock %}

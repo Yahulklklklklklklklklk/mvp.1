@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}开源威胁情报智能分级搜索平台{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="layout-shell">
+    {% if user %}
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">TI</div>
+            <div>
+                <div class="brand-title">威胁情报平台</div>
+                <div class="brand-subtitle">Threat Intel Search</div>
+            </div>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">{{ user.username[:1]|upper }}</div>
+            <div>
+                <div class="user-name">{{ user.username }}</div>
+                <div class="user-role">{{ '管理员' if user.role == 'admin' else '分析员' }}</div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/history" class="nav-link">查询历史</a>
+            {% if user.role == 'admin' %}
+            <a href="/admin/sources" class="nav-link">情报源管理</a>
+            <a href="/admin/users" class="nav-link">用户管理</a>
+            <a href="/admin/audit-logs" class="nav-link">审计日志</a>
+            {% endif %}
+            <a href="/logout" class="nav-link nav-danger">退出登录</a>
+        </nav>
+    </aside>
+    {% endif %}
+
+    <div class="main-area {% if not user %}no-sidebar{% endif %}">
+        {% if user %}
+        <header class="topbar">
+            <div>
+                <h1 class="page-title">{% block page_title %}开源威胁情报智能分级搜索平台{% endblock %}</h1>
+                <p class="page-desc">{% block page_desc %}面向安全分析的开源威胁情报统一检索与管理平台{% endblock %}</p>
+            </div>
+        </header>
+        {% endif %}
+
+        <main class="page-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+</body>
+</html>

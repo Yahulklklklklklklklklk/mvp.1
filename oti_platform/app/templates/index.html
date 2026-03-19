@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}首页 - 开源威胁情报智能分级搜索平台{% endblock %}
+{% block page_title %}统一搜索控制台{% endblock %}
+{% block page_desc %}支持单条指标查询、批量 IOC 检索、缓存命中显示与情报结果可视化{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <section class="panel hero-panel full-span">
+        <div class="hero-main">
+            <div class="hero-badge-small">实时威胁检索</div>
+            <h2>多源情报统一搜索与缓存分级响应</h2>
+            <p>
+                输入 IP、域名、MD5、SHA1、SHA256 等指标，平台优先查询本地缓存；
+                若缓存未命中或已过期，则自动调用外部情报源进行聚合查询并回写本地数据库。
+            </p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-box">
+                <span>当前用户</span>
+                <strong>{{ user.username }}</strong>
+            </div>
+            <div class="stat-box">
+                <span>角色</span>
+                <strong>{{ user.role }}</strong>
+            </div>
+            <div class="stat-box">
+                <span>支持指标</span>
+                <strong>IP / 域名 / HASH</strong>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="search-live-layout">
+    <div class="search-side">
+        <section class="panel">
+            <div class="panel-header">
+                <h3>单一指标查询</h3>
+                <p>输入一个 IOC 后立即在右侧看到结果</p>
+            </div>
+            <div class="inline-search">
+                <input id="indicator" type="text" placeholder="例如：8.8.8.8 / example.com / HASH 值">
+                <button id="searchOneBtn" class="btn btn-primary" onclick="searchOne()">立即查询</button>
+            </div>
+            <div class="example-actions">
+                <button class="mini-tag" onclick="setIndicator('8.8.8.8')">8.8.8.8</button>
+                <button class="mini-tag" onclick="setIndicator('example.com')">example.com</button>
+                <button class="mini-tag" onclick="setIndicator('44d88612fea8a8f36de82e1278abb02f')">示例 MD5</button>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h3>批量指标查询</h3>
+                <p>每行一个指标，系统逐条识别类型并执行查询</p>
+            </div>
+            <textarea id="batchIndicators" rows="10" placeholder="每行一个指标&#10;8.8.8.8&#10;example.com"></textarea>
+            <div class="action-row">
+                <button id="searchBatchBtn" class="btn btn-primary" onclick="searchBatch()">批量查询</button>
+                <button class="btn btn-light" onclick="clearBatch()">清空</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="result-side">
+        <section class="panel live-result-panel">
+            <div class="panel-header result-header">
+                <div>
+                    <h3>实时结果面板</h3>
+                    <p>查询后立即在这里显示结果，不需要往下翻</p>
+                </div>
+                <div class="live-status" id="liveStatus">待查询</div>
+            </div>
+
+            <div id="resultMeta" class="result-meta">请输入指标并点击查询</div>
+
+            <div id="summaryBox" class="summary-empty">
+                这里会显示风险等级、缓存状态和情报摘要
+            </div>
+
+            <div class="json-box-wrap">
+                <div class="json-title-row">
+                    <strong>原始 JSON</strong>
+                    <button class="btn btn-light btn-sm" onclick="copyResult()">复制结果</button>
+                </div>
+                <pre id="resultBox" class="result-json">{
+  "message": "请输入指标后开始查询"
+}</pre>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+let latestResult = null;
+
+function setIndicator(value) {
+    document.getElementById('indicator').value = value;
+}
+
+function clearBatch() {
+    document.getElementById('batchIndicators').value = '';
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function severityClass(level) {
+    const map = {
+        high: 'sev-high',
+        medium: 'sev-medium',
+        low: 'sev-low',
+        unknown: 'sev-unknown'
+    };
+    return map[level] || 'sev-unknown';
+}
+
+function severityText(level) {
+    const map = {
+        high: '高风险',
+        medium: '中风险',
+        low: '低风险',
+        unknown: '未知'
+    };
+    return map[level] || '未知';
+}
+
+function setLiveStatus(text, cls = '') {
+    const el = document.getElementById('liveStatus');
+    el.className = 'live-status ' + cls;
+    el.textContent = text;
+}
+
+function updateMeta(text) {
+    document.getElementById('resultMeta').textContent = text;
+}
+
+function ensureResultVisible() {
+    if (window.innerWidth <= 1100) {
+        document.querySelector('.live-result-panel').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }
+}
+
+function renderSingleSummary(data) {
+    const box = document.getElementById('summaryBox');
+    const results = data.results || [];
+
+    if (!results.length) {
+        box.innerHTML = '<div class="summary-empty">未返回有效结果</div>';
+        return;
+    }
+
+    let html = `<div class="summary-topline">
+        <span class="summary-chip">指标：${escapeHtml(data.indicator || '-')}</span>
+        <span class="summary-chip">类型：${escapeHtml(data.indicator_type || '-')}</span>
+        <span class="summary-chip ${data.cache_hit ? 'chip-hit' : 'chip-miss'}">${data.cache_hit ? '缓存命中' : '外部查询'}</span>
+    </div>`;
+
+    html += '<div class="result-card-grid">';
+    for (const item of results) {
+        const sev = item.severity || 'unknown';
+        html += `
+        <div class="intel-card ${severityClass(sev)}">
+            <div class="intel-card-top">
+                <div>
+                    <div class="intel-source">${escapeHtml(item.source_name || '-')}</div>
+                    <div class="intel-indicator">${escapeHtml(item.indicator || '-')}</div>
+                </div>
+                <span class="severity-pill ${severityClass(sev)}">${severityText(sev)}</span>
+            </div>
+            <div class="intel-summary">${escapeHtml(item.summary || '暂无摘要')}</div>
+            <div class="intel-meta">
+                <span>${item.cache ? '来自缓存' : '实时查询'}</span>
+                <span>${escapeHtml(item.indicator_type || '-')}</span>
+            </div>
+        </div>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+}
+
+function renderBatchSummary(data) {
+    const box = document.getElementById('summaryBox');
+    const items = data.items || [];
+
+    if (!items.length) {
+        box.innerHTML = '<div class="summary-empty">未返回批量结果</div>';
+        return;
+    }
+
+    let html = '<div class="result-card-grid">';
+    for (const item of items) {
+        html += `
+        <div class="intel-card sev-unknown">
+            <div class="intel-card-top">
+                <div>
+                    <div class="intel-source">批量查询项</div>
+                    <div class="intel-indicator">${escapeHtml(item.indicator || '-')}</div>
+                </div>
+                <span class="severity-pill sev-unknown">${escapeHtml(item.indicator_type || '-')}</span>
+            </div>
+            <div class="intel-summary">结果数：${item.result_count ?? 0}</div>
+            <div class="intel-meta">
+                <span>${item.cache_hit ? '缓存命中' : '外部查询'}</span>
+            </div>
+        </div>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+}
+
+async function searchOne() {
+    const indicator = document.getElementById('indicator').value.trim();
+    if (!indicator) {
+        updateMeta('请输入要查询的指标');
+        return;
+    }
+
+    const btn = document.getElementById('searchOneBtn');
+    btn.disabled = true;
+    btn.textContent = '查询中...';
+    setLiveStatus('查询中', 'status-loading');
+    updateMeta('正在查询，请稍候...');
+    document.getElementById('summaryBox').innerHTML = '<div class="summary-empty">正在查询...</div>';
+    document.getElementById('resultBox').textContent = '{\n  "message": "正在查询..." \n}';
+    ensureResultVisible();
+
+    try {
+        const res = await fetch('/api/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ indicator })
+        });
+        const data = await res.json();
+        latestResult = data;
+        document.getElementById('resultBox').textContent = JSON.stringify(data, null, 2);
+        renderSingleSummary(data);
+
+        const count = data.results ? data.results.length : 0;
+        updateMeta(`单条查询完成｜指标：${data.indicator || '-'}｜类型：${data.indicator_type || '-'}｜结果数：${count}｜缓存命中：${data.cache_hit ? '是' : '否'}`);
+        setLiveStatus('已完成', 'status-success');
+    } catch (err) {
+        document.getElementById('summaryBox').innerHTML = '<div class="summary-empty">查询失败，请稍后重试</div>';
+        document.getElementById('resultBox').textContent = JSON.stringify({ error: String(err) }, null, 2);
+        updateMeta('查询失败');
+        setLiveStatus('失败', 'status-error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '立即查询';
+    }
+}
+
+async function searchBatch() {
+    const raw = document.getElementById('batchIndicators').value;
+    const indicators = raw.split('\n').map(x => x.trim()).filter(Boolean);
+    if (!indicators.length) {
+        updateMeta('请输入批量查询内容');
+        return;
+    }
+
+    const btn = document.getElementById('searchBatchBtn');
+    btn.disabled = true;
+    btn.textContent = '查询中...';
+    setLiveStatus('批量查询中', 'status-loading');
+    updateMeta('正在批量查询，请稍候...');
+    document.getElementById('summaryBox').innerHTML = '<div class="summary-empty">批量查询中...</div>';
+    document.getElementById('resultBox').textContent = '{\n  "message": "正在批量查询..." \n}';
+    ensureResultVisible();
+
+    try {
+        const res = await fetch('/api/batch-search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ indicators })
+        });
+        const data = await res.json();
+        latestResult = data;
+        document.getElementById('resultBox').textContent = JSON.stringify(data, null, 2);
+        renderBatchSummary(data);
+        updateMeta(`批量查询完成｜处理指标数：${(data.items || []).length}`);
+        setLiveStatus('已完成', 'status-success');
+    } catch (err) {
+        document.getElementById('summaryBox').innerHTML = '<div class="summary-empty">批量查询失败，请稍后重试</div>';
+        document.getElementById('resultBox').textContent = JSON.stringify({ error: String(err) }, null, 2);
+        updateMeta('批量查询失败');
+        setLiveStatus('失败', 'status-error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '批量查询';
+    }
+}
+
+async function copyResult() {
+    const content = document.getElementById('resultBox').textContent;
+    await navigator.clipboard.writeText(content);
+    updateMeta('原始结果已复制到剪贴板');
+}
+</script>
+{% endblock %}
